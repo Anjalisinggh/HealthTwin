@@ -1,69 +1,84 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useRouter } from "next/navigation";
+import { ArrowRight, FileText, Lock, Sparkles, Activity } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
+import { PhoneFrame } from "@/components/shell/AppShell";
+import { useHealth } from "@/lib/store/HealthStore";
+
+const POINTS = [
+  { icon: Activity, title: "See how you’re doing", body: "Every vital and lab value, with what’s changed." },
+  { icon: FileText, title: "Records that read themselves", body: "Upload a report; get it in plain language." },
+  { icon: Sparkles, title: "Answers that know you", body: "Ask about your own history, not a generic list." },
+];
+
+export default function WelcomePage() {
+  const router = useRouter();
+  const { hydrated, onboardingComplete, loadDemo } = useHealth();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <PhoneFrame>
+      {/* Hero */}
+      <section className="card-emerald relative m-3 flex min-h-[50dvh] flex-col justify-between rounded-[32px] px-6 pb-8 pt-[calc(20px+env(safe-area-inset-top))]">
+        <Logo tone="ivory" />
+
+        <div className="relative stagger">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-2" style={{ "--i": 0 } as React.CSSProperties}>
+            Your personal health companion
+          </div>
+          <h1 className="mt-4 text-[48px] leading-[0.98] text-on-brand" style={{ "--i": 1 } as React.CSSProperties}>
+            Your health,
+            <br />
+            <span className="italic text-gold-2">understood.</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-4 max-w-[300px] text-[15px] leading-relaxed text-on-brand/75" style={{ "--i": 2 } as React.CSSProperties}>
+            Records, trends and next steps in one calm place, with an AI that answers from your own history.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+
+      {/* Points */}
+      <section className="stagger px-6 pt-5">
+        {POINTS.map((p, i) => (
+          <div key={p.title} className="flex items-start gap-3.5 border-b border-line py-3.5 last:border-0" style={{ "--i": i + 3 } as React.CSSProperties}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+              <p.icon className="h-[17px] w-[17px]" />
+            </span>
+            <span>
+              <span className="block text-[15px] font-medium">{p.title}</span>
+              <span className="block text-[13px] text-ink-3">{p.body}</span>
+            </span>
+          </div>
+        ))}
+      </section>
+
+      {/* Actions */}
+      <section className="mt-auto px-6 pb-[calc(20px+env(safe-area-inset-bottom))] pt-6">
+        {hydrated && onboardingComplete ? (
+          <Button size="lg" href="/today" className="w-full">
+            Open my HealthTwin <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button size="lg" href="/onboarding" className="w-full">
+            Get started <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+        <Button
+          size="lg"
+          variant="ghost"
+          className="mt-2 w-full"
+          onClick={() => {
+            loadDemo();
+            router.push("/today");
+          }}
+        >
+          Explore a sample profile
+        </Button>
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11.5px] text-ink-3">
+          <Lock className="h-3 w-3" /> Stored on this device. Not a substitute for your doctor.
+        </p>
+      </section>
+    </PhoneFrame>
   );
 }

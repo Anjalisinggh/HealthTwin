@@ -1,0 +1,220 @@
+// HealthTwin — draft data model for Phase 1.
+//
+// Not wired up yet: the app runs on a browser-local repository today
+// (src/lib/repository). This schema mirrors src/lib/types.ts one-to-one so the
+// swap to Postgres is a repository implementation, not a UI change.
+//
+// To activate later:
+//   npm i prisma @prisma/client && npx prisma init --datasource-provider postgresql
+//   npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String?  @unique
+  name       String
+  age        Int?
+  sex        String?
+  heightCm   Float?
+  weightKg   Float?
+  location   String?
+  occupation String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  onboarding    OnboardingAnswer[]
+  conditions    Condition[]
+  medications   Medication[]
+  allergies     Allergy[]
+  surgeries     Surgery[]
+  familyHistory FamilyHistory[]
+  lifestyle     Lifestyle?
+  symptoms      Symptom[]
+  records       HealthRecord[]
+  readings      Reading[]
+  chats         ChatSession[]
+  consents      Consent[]
+}
+
+/// Raw survey answers, kept so the profile can be re-derived when the
+/// question tree changes. `value` holds the AnswerValue JSON.
+model OnboardingAnswer {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  value      Json
+  answeredAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+}
+
+model Condition {
+  id          String  @id @default(cuid())
+  userId      String
+  key         String
+  name        String
+  status      String  @default("active")
+  diagnosed   String?
+  managedWith String?
+  notes       String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Medication {
+  id              String  @id @default(cuid())
+  userId          String
+  name            String
+  dose            String?
+  frequency       String?
+  forConditionKey String?
+  adherence       String?
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Allergy {
+  id        String  @id @default(cuid())
+  userId    String
+  substance String
+  reaction  String?
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Surgery {
+  id     String  @id @default(cuid())
+  userId String
+  name   String
+  year   String?
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FamilyHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  conditionKey String
+  condition    String
+  relations    String[]
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Lifestyle {
+  userId        String  @id
+  smoking       String?
+  smokingAmount String?
+  alcohol       String?
+  activity      String?
+  sleepHours    Float?
+  sleepQuality  String?
+  diet          String?
+  stress        Int?
+  waterGlasses  Int?
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Symptom {
+  id         String   @id @default(cuid())
+  userId     String
+  key        String
+  name       String
+  details    Json
+  reportedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, reportedAt])
+}
+
+model HealthRecord {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String
+  title      String
+  date       DateTime
+  provider   String?
+  fileName   String?
+  /// Object-storage key for the original upload.
+  storageKey String?
+  status     String    @default("uploaded")
+  summary    String?
+  impression String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  values     ExtractedValue[]
+  readings   Reading[]
+
+  @@index([userId, date])
+}
+
+model ExtractedValue {
+  id       String       @id @default(cuid())
+  recordId String
+  name     String
+  metric   String?
+  value    String
+  numeric  Float?
+  unit     String?
+  refLow   Float?
+  refHigh  Float?
+  flag     String?
+  record   HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
+}
+
+model Reading {
+  id       String        @id @default(cuid())
+  userId   String
+  metric   String
+  value    Float
+  unit     String
+  takenAt  DateTime
+  source   String
+  recordId String?
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  record   HealthRecord? @relation(fields: [recordId], references: [id], onDelete: SetNull)
+
+  @@index([userId, metric, takenAt])
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  role      String
+  content   String
+  tier      String?
+  /// Record ids the answer cited.
+  sources   String[]
+  createdAt DateTime    @default(now())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+/// Privacy & consent (README §9): what the user agreed to and when.
+model Consent {
+  id        String   @id @default(cuid())
+  userId    String
+  scope     String
+  granted   Boolean
+  grantedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scope])
+}
