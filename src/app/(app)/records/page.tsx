@@ -118,7 +118,7 @@ function RecordsInner() {
       </div>
 
       <p className="flex items-center gap-2 px-5 pb-6 pt-8 text-[12px] text-ink-3">
-        <Lock className="h-3.5 w-3.5" /> Stored privately on this device.
+        <Lock className="h-3.5 w-3.5" /> Stored privately in your account.
       </p>
 
       <UploadDialog open={open} onClose={() => setOpen(false)} />

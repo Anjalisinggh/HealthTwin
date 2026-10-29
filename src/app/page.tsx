@@ -15,7 +15,7 @@ const POINTS = [
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { hydrated, onboardingComplete, loadDemo } = useHealth();
+  const { hydrated, account, onboardingComplete, loadDemo } = useHealth();
 
   return (
     <PhoneFrame>
@@ -55,28 +55,42 @@ export default function WelcomePage() {
 
       {/* Actions */}
       <section className="mt-auto px-6 pb-[calc(20px+env(safe-area-inset-bottom))] pt-6">
-        {hydrated && onboardingComplete ? (
+        {!hydrated ? (
+          <div className="h-12" />
+        ) : !account ? (
+          <>
+            <Button size="lg" href="/signup" className="w-full">
+              Create an account <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button size="lg" variant="ghost" href="/login" className="mt-2 w-full">
+              I already have an account
+            </Button>
+          </>
+        ) : onboardingComplete ? (
           <Button size="lg" href="/today" className="w-full">
             Open my HealthTwin <ArrowRight className="h-4 w-4" />
           </Button>
         ) : (
-          <Button size="lg" href="/onboarding" className="w-full">
-            Get started <ArrowRight className="h-4 w-4" />
-          </Button>
+          <>
+            <Button size="lg" href="/onboarding" className="w-full">
+              Get started <ArrowRight className="h-4 w-4" />
+            </Button>
+            {/* Only offered before onboarding, so it never overwrites someone's real data */}
+            <Button
+              size="lg"
+              variant="ghost"
+              className="mt-2 w-full"
+              onClick={() => {
+                loadDemo();
+                router.push("/today");
+              }}
+            >
+              Explore a sample profile
+            </Button>
+          </>
         )}
-        <Button
-          size="lg"
-          variant="ghost"
-          className="mt-2 w-full"
-          onClick={() => {
-            loadDemo();
-            router.push("/today");
-          }}
-        >
-          Explore a sample profile
-        </Button>
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11.5px] text-ink-3">
-          <Lock className="h-3 w-3" /> Stored on this device. Not a substitute for your doctor.
+          <Lock className="h-3 w-3" /> Private to your account. Not a substitute for your doctor.
         </p>
       </section>
     </PhoneFrame>

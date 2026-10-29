@@ -57,8 +57,8 @@
   --good-bg: #e6f0ea;
 
   /* Chart series */
-  --series-1: #1d5a4b;
-  --series-2: #b08a55;
+  --series-1: #0d8466;
+  --series-2: #b8863f;
   --series-3: #4d8c93;
 
   --radius-sm: 12px;
@@ -329,4 +329,11 @@ h2,
 }
 .prose-ht em {
   font-style: italic;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

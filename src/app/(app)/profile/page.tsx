@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, AlertCircle, ChevronRight, Dna, Eye, HeartPulse, Info, Moon, RefreshCw, Scissors, ShieldCheck } from "lucide-react";
+import { Activity, AlertCircle, ChevronRight, Dna, Eye, HeartPulse, Info, LogOut, Moon, RefreshCw, Scissors, ShieldCheck } from "lucide-react";
 import { ScreenHeader, Screen, Section, List, Row } from "@/components/shell/AppShell";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Data";
@@ -9,9 +9,11 @@ import { Disclaimer } from "@/components/ui/SafetyNote";
 import { useHealth } from "@/lib/store/HealthStore";
 import { profileCompleteness } from "@/lib/onboarding/toProfile";
 import { describeLifestyle } from "@/lib/context/engine";
+import { logout } from "@/lib/server/auth-actions";
+import { repository } from "@/lib/repository";
 
 export default function ProfilePage() {
-  const { profile, context, emergency } = useHealth();
+  const { profile, context, emergency, account } = useHealth();
   if (!profile || !context) return null;
   const p = profile;
   const completeness = profileCompleteness(p);
@@ -126,6 +128,19 @@ export default function ProfilePage() {
           <Row icon={<RefreshCw className="h-[18px] w-[18px]" />} title="Update my health profile" detail="Redo the guided questions" href="/onboarding" />
           <Row icon={<Eye className="h-[18px] w-[18px]" />} title="What HealthTwin can see" href="/profile/settings#context" />
           <Row icon={<Info className="h-[18px] w-[18px]" />} title="About & safety" detail="How HealthTwin should and shouldn’t be used" href="/profile/settings#safety" />
+          <Row
+            icon={<LogOut className="h-[18px] w-[18px]" />}
+            title="Log out"
+            detail={account?.email}
+            onClick={async () => {
+              // Save anything still queued before the session ends, then start clean
+              await repository.flush();
+              await logout();
+              // Full load (not router.push) so this account's data is dropped from memory
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+              window.location.assign("/login");
+            }}
+          />
         </List>
       </Section>
 

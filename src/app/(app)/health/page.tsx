@@ -12,7 +12,7 @@ import { LogReadingSheet, type LogKind } from "@/components/health/LogReadingShe
 import { useHealth } from "@/lib/store/HealthStore";
 import { allReadings, markers, type Marker } from "@/lib/care";
 import { computeTrend, fmtDate, fmtMonth, seriesFor, type Trend } from "@/lib/trends";
-import { METRIC_META, fmtMetric, type MetricKey } from "@/lib/types";
+import { METRIC_META, fmtMetric, type MetricKey, type Reading } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 type Tab = "vitals" | "labs" | "trends";
@@ -50,20 +50,16 @@ function HealthInner() {
   // The shell only renders screens after the store hydrates on the client, so reading the hash here is safe
   const [tab, setTab] = useState<Tab>(() => (typeof window !== "undefined" && window.location.hash.slice(1) in METRIC_META ? "trends" : "vitals"));
   const [range, setRange] = useState<Range>("all");
-  const [showAllTrends, setShowAllTrends] = useState(false);
+  const [focus, setFocus] = useState<MetricKey>(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
+    return hash in METRIC_META ? (hash === "diastolic" ? "systolic" : (hash as MetricKey)) : "systolic";
+  });
   const [logging, setLogging] = useState<LogKind | null>(() => (params.get("log") as LogKind | null) ?? null);
 
   useEffect(() => {
     if (params.get("log")) router.replace("/health");
   }, [params, router]);
 
-  // Deep links like /health#ldl land on that trend chart
-  useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (hash && hash in METRIC_META) {
-      setTimeout(() => document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-    }
-  }, []);
 
   const all = useMemo(() => (context ? allReadings(context) : readings), [context, readings]);
   const filtered = useMemo(() => {
@@ -170,8 +166,9 @@ function HealthInner() {
                 <div className="card divide-y divide-line overflow-hidden">
                   {list.map((m) => (
                     <LabRow key={m.metric} m={m} onOpen={() => {
+                      setFocus(m.metric);
                       setTab("trends");
-                      setTimeout(() => document.getElementById(m.metric)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
                     }} />
                   ))}
                 </div>
@@ -184,70 +181,90 @@ function HealthInner() {
         </div>
       )}
 
-      {tab === "trends" && (
-        <div className="animate-rise">
-          <div className="flex gap-2 px-5 pt-4">
-            {(["all", "2y", "1y"] as Range[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={cn(
-                  "h-8 rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
-                  range === r ? "border-brand-700 bg-brand-700 text-on-brand" : "border-line bg-surface text-ink-2",
-                )}
-              >
-                {r === "all" ? "All time" : r === "2y" ? "2 years" : "1 year"}
-              </button>
-            ))}
-          </div>
-
-          <TrendCard
-            id="systolic"
-            title="Blood pressure"
-            trend={computeTrend(filtered, "systolic")}
-            value={(() => {
-              const s = computeTrend(filtered, "systolic").latest;
-              const d = computeTrend(filtered, "diastolic").latest;
-              return s ? `${s.value}/${d?.value ?? "–"}` : "—";
-            })()}
-            series={[
-              { key: "sys", label: "Systolic", color: "var(--series-1)", points: seriesFor(filtered, "systolic") },
-              { key: "dia", label: "Diastolic", color: "var(--series-2)", points: seriesFor(filtered, "diastolic") },
-            ].filter((s) => s.points.length > 0)}
-            note="A common target on treatment is below 130/80; your doctor may set a different one."
-          />
-          {TREND_METRICS.filter((metric) => computeTrend(filtered, metric).points.length > 0)
-            .slice(0, showAllTrends ? undefined : 3)
-            .map((metric) => {
-            const t = computeTrend(filtered, metric);
-            return (
-              <TrendCard
-                key={metric}
-                id={metric}
-                title={t.label}
-                trend={t}
-                value={t.latest ? fmtMetric(t.latest.value, metric) : "—"}
-                refLow={METRIC_META[metric].refLow}
-                refHigh={METRIC_META[metric].refHigh}
-                series={[{ key: metric, label: t.label, color: "var(--series-1)", points: t.points }]}
-              />
-            );
-          })}
-
-          {!showAllTrends && TREND_METRICS.filter((metric) => computeTrend(filtered, metric).points.length > 0).length > 3 && (
-            <div className="px-5 pt-4">
-              <button onClick={() => setShowAllTrends(true)} className="h-11 w-full rounded-full border border-line bg-surface text-[14px] font-medium text-brand-700">
-                Show all trends
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {tab === "trends" && <TrendsTab readings={filtered} range={range} setRange={setRange} focus={focus} setFocus={setFocus} />}
 
       <Disclaimer className="px-5 pb-6 pt-8" />
 
       {logging && <LogReadingSheet kind={logging} onClose={() => setLogging(null)} />}
     </Screen>
+  );
+}
+
+function TrendsTab({
+  readings,
+  range,
+  setRange,
+  focus,
+  setFocus,
+}: {
+  readings: Reading[];
+  range: Range;
+  setRange: (r: Range) => void;
+  focus: MetricKey;
+  setFocus: (m: MetricKey) => void;
+}) {
+  // Only offer metrics that have readings in the chosen period
+  const options = (["systolic", ...TREND_METRICS] as MetricKey[]).filter((m) => computeTrend(readings, m).points.length > 0);
+  const active = options.includes(focus) ? focus : options[0];
+
+  return (
+    <div className="animate-rise">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-4">
+        {options.map((m) => (
+          <button
+            key={m}
+            onClick={() => setFocus(m)}
+            className={cn(
+              "h-9 shrink-0 rounded-full border px-4 text-[13px] font-medium transition-colors",
+              m === active ? "border-brand-700 bg-brand-700 text-on-brand" : "border-line bg-surface text-ink-2 hover:text-ink",
+            )}
+          >
+            {m === "systolic" ? "Blood pressure" : METRIC_META[m].label}
+          </button>
+        ))}
+      </div>
+
+      {!active ? (
+        <p className="px-5 pt-8 text-center text-[14px] text-ink-3">No readings in this period.</p>
+      ) : active === "systolic" ? (
+        <TrendCard
+          id="systolic"
+          title="Blood pressure"
+          trend={computeTrend(readings, "systolic")}
+          value={(() => {
+            const s = computeTrend(readings, "systolic").latest;
+            const d = computeTrend(readings, "diastolic").latest;
+            return s ? `${s.value}/${d?.value ?? "–"}` : "—";
+          })()}
+          series={[
+            { key: "sys", label: "Systolic", color: "var(--series-1)", points: seriesFor(readings, "systolic") },
+            { key: "dia", label: "Diastolic", color: "var(--series-2)", points: seriesFor(readings, "diastolic") },
+          ].filter((s) => s.points.length > 0)}
+          note="A common target on treatment is below 130/80; your doctor may set a different one."
+          range={range}
+          setRange={setRange}
+        />
+      ) : (
+        <SingleTrend metric={active} readings={readings} range={range} setRange={setRange} />
+      )}
+    </div>
+  );
+}
+
+function SingleTrend({ metric, readings, range, setRange }: { metric: MetricKey; readings: Reading[]; range: Range; setRange: (r: Range) => void }) {
+  const t = computeTrend(readings, metric);
+  return (
+    <TrendCard
+      id={metric}
+      title={t.label}
+      trend={t}
+      value={t.latest ? fmtMetric(t.latest.value, metric) : "—"}
+      refLow={METRIC_META[metric].refLow}
+      refHigh={METRIC_META[metric].refHigh}
+      series={[{ key: metric, label: t.label, color: "var(--series-1)", points: t.points }]}
+      range={range}
+      setRange={setRange}
+    />
   );
 }
 
@@ -291,7 +308,11 @@ function TrendCard({
   refLow,
   refHigh,
   note,
+  range,
+  setRange,
 }: {
+  range: Range;
+  setRange: (r: Range) => void;
   id: string;
   title: string;
   trend: Trend;
@@ -328,11 +349,22 @@ function TrendCard({
             {trend.status === "in_range" && <Badge tone="brand">In range</Badge>}
           </div>
         </div>
-        <div className="mt-4">
+        <div className="mt-5">
           <LineChart unit={trend.unit} refLow={refLow} refHigh={refHigh} series={series} />
         </div>
         {trend.observation && <p className="mt-3 text-[13.5px] leading-relaxed text-ink-2">{trend.observation}</p>}
         {note && <p className="mt-1.5 text-[12px] text-ink-3">{note}</p>}
+        <div className="mt-4 grid grid-cols-3 rounded-full bg-surface-3/70 p-1">
+          {(["1y", "2y", "all"] as Range[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={cn("h-8 rounded-full text-[12.5px] font-medium transition-colors", range === r ? "bg-surface text-ink shadow-sm" : "text-ink-3")}
+            >
+              {r === "all" ? "All time" : r === "2y" ? "2 years" : "1 year"}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );

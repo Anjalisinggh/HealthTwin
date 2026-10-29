@@ -6,12 +6,16 @@ import { pruneHiddenAnswers } from "../onboarding/engine";
 import { answersToProfile, answersToReadings } from "../onboarding/toProfile";
 import { DEMO_ANSWERS } from "../mock/demoAnswers";
 import { MOCK_READINGS, MOCK_RECORDS } from "../mock/records";
-import { repository, type EmergencyInfo, type PersistedState } from "../repository";
+import { repository, type Account, type EmergencyInfo, type PersistedState } from "../repository";
 import type { HealthProfile, HealthRecord, Reading } from "../types";
 import { buildHealthContext, type HealthContext } from "../context/engine";
 
 interface HealthStore extends PersistedState {
   hydrated: boolean;
+  /** The signed-in account, or null when signed out. */
+  account: Account | null;
+  /** Set when the server couldn't be reached on load. */
+  loadError: string | null;
   context: HealthContext | null;
   setAnswer: (id: string, value: AnswerValue) => void;
   completeOnboarding: () => void;
@@ -40,28 +44,39 @@ const Ctx = createContext<HealthStore | null>(null);
 export function HealthStoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PersistedState>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
+  const [account, setAccount] = useState<Account | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const skipNextSave = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
-    repository.load().then((loaded) => {
-      if (cancelled) return;
-      if (loaded) setState(loaded);
-      setHydrated(true);
-    });
+    repository
+      .load()
+      .then((loaded) => {
+        if (cancelled) return;
+        setAccount(loaded.account);
+        if (loaded.state) setState(loaded.state);
+        setHydrated(true);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setLoadError(e instanceof Error ? e.message : "Couldn't load your data");
+        setHydrated(true);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    // Only signed-in users with a successfully loaded twin are saved
+    if (!hydrated || !account || loadError) return;
     if (skipNextSave.current) {
       skipNextSave.current = false;
       return;
     }
     void repository.save(state);
-  }, [state, hydrated]);
+  }, [state, hydrated, account, loadError]);
 
   const setAnswer = useCallback((id: string, value: AnswerValue) => {
     setState((s) => ({ ...s, answers: pruneHiddenAnswers({ ...s.answers, [id]: value }) }));
@@ -135,8 +150,8 @@ export function HealthStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<HealthStore>(
-    () => ({ ...state, hydrated, context, setAnswer, completeOnboarding, loadDemo, reset, addRecord, updateRecord, addReadings, toggleDose, setEmergency }),
-    [state, hydrated, context, setAnswer, completeOnboarding, loadDemo, reset, addRecord, updateRecord, addReadings, toggleDose, setEmergency],
+    () => ({ ...state, hydrated, account, loadError, context, setAnswer, completeOnboarding, loadDemo, reset, addRecord, updateRecord, addReadings, toggleDose, setEmergency }),
+    [state, hydrated, account, loadError, context, setAnswer, completeOnboarding, loadDemo, reset, addRecord, updateRecord, addReadings, toggleDose, setEmergency],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

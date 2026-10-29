@@ -43,7 +43,7 @@ src/
     records/                UploadDialog (uploaded → extracting → ready), icons
     trends/                 LineChart (hand-rolled SVG, no chart dependency)
   lib/
-    types.ts                Domain model, mirrors prisma/schema.prisma
+    types.ts                Domain model
     onboarding/
       schema.ts             Question + rule language (data, not code)
       questions.ts          The question tree (~70 questions, ~45 conditional)
@@ -52,10 +52,12 @@ src/
     context/engine.ts       Health Context Engine: build, render for prompt, retrieve by query
     ai/companion.ts         CompanionProvider seam + MockCompanion (intent → templated answer from context)
     trends.ts               Series, deltas, direction, observational text
-    repository/             HealthRepository interface; LocalRepository (browser storage) today
+    repository/             HealthRepository interface; ApiRepository (syncs with /api/state)
+    server/                 db (Prisma), session (JWT cookie), auth actions, health-data access
     store/HealthStore.tsx   React context: answers, profile, records, readings, context
     mock/                   Sample records, readings and a completed onboarding
-prisma/schema.prisma        Draft Postgres model (not yet installed or migrated)
+prisma/schema.prisma        Postgres model (User, HealthState, HealthRecord, Reading)
+src/proxy.ts                Redirects signed-out visitors to /login
 ```
 
 ### Adaptive onboarding
@@ -78,11 +80,23 @@ Three tiers everywhere: 🟢 information, 🟡 guidance (worth discussing with y
 
 ### Data
 
-Phase 1 stores everything in the browser (`LocalRepository`). The `/api/chat` route receives the context in the request body for now; with Prisma in place it will load it by user id. `prisma/schema.prisma` already mirrors `lib/types.ts`.
+Each user's twin lives in Postgres (Neon in production) through Prisma 7. Accounts use email + password (bcrypt), with a signed JWT session in an httpOnly cookie (`src/lib/server/session.ts`).
+
+The UI still talks to `HealthRepository`. `ApiRepository` loads `GET /api/state` once and then sends only the changed fields with `PATCH /api/state`, debounced. `/api/chat` builds the health context on the server from the signed-in user's saved data. Data a browser stored before accounts existed is uploaded on first sign-in.
+
+#### Setup
+
+1. Create a Neon project and copy its connection string.
+2. `cp .env.example .env`, then set `DATABASE_URL` and `SESSION_SECRET`.
+3. `npm install` (runs `prisma generate`), then `npm run db:migrate` to create the tables.
+4. `npm run dev`.
+
+For a local database instead, run `npx prisma dev --name healthtwin --detach` and use the `postgres://` URL it prints.
+
+On Vercel, add the same two variables to the project and run `npm run db:migrate` against the Neon database once per new migration.
 
 ## Next steps
 
 1. Claude-backed `CompanionProvider` with streaming.
 2. Real document extraction (PDF/image → `ExtractedValue[]`) behind the same `uploaded → extracting → ready` states.
-3. Prisma + Postgres repository, auth, and server-side context loading.
-4. HealthTwin Kit device readings (`Reading.source = "kit"`).
+3. HealthTwin Kit device readings (`Reading.source = "kit"`).

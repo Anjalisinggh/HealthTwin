@@ -8,6 +8,7 @@ import { LogoMark } from "@/components/ui/Logo";
 import { Markdown } from "@/components/ui/Markdown";
 import { TierPill } from "@/components/ui/SafetyNote";
 import { useHealth } from "@/lib/store/HealthStore";
+import { repository } from "@/lib/repository";
 import type { CompanionReply } from "@/lib/ai/companion";
 import { followUp } from "@/lib/care";
 import { fmtDate, fmtMonth } from "@/lib/trends";
@@ -57,10 +58,12 @@ function ChatInner() {
       setInput("");
       setBusy(true);
       try {
+        // The server answers from saved data, so send any queued changes first
+        await repository.flush();
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ messages: history.map((m) => ({ role: m.role, content: m.content })), profile, records, readings }),
+          body: JSON.stringify({ messages: history.map((m) => ({ role: m.role, content: m.content })) }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const reply = (await res.json()) as CompanionReply;
@@ -73,7 +76,7 @@ function ChatInner() {
         setBusy(false);
       }
     },
-    [busy, messages, profile, records, readings],
+    [busy, messages, profile],
   );
 
   // Deep link: /chat?q=...

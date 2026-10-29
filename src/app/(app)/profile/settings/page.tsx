@@ -34,7 +34,7 @@ export default function SettingsPage() {
           <Row title="Health profile" detail="Your answers build your history, lifestyle and family context." />
           <Row title="Records" detail="Uploaded reports are read to extract values for your timeline and trends." />
           <Row title="Readings" detail="Values you log, or that come from reports, power your trends." />
-          <Row title="Where it lives" detail="On this device only. Only the context needed to answer a chat message is sent, and it isn’t retained." />
+          <Row title="Where it lives" detail="In your private HealthTwin account, stored in an encrypted database. Chat answers are built from it on our server." />
         </List>
       </Section>
 
@@ -70,7 +70,7 @@ export default function SettingsPage() {
       <Section>
         <div className="rounded-[22px] border border-urgent/15 bg-urgent-bg p-4">
           <div className="text-[15px] font-medium text-urgent">Delete my HealthTwin</div>
-          <p className="mt-1 text-[13px] text-ink-2">Removes your profile, answers, records and readings from this device. This can’t be undone.</p>
+          <p className="mt-1 text-[13px] text-ink-2">Removes your profile, answers, records and readings from your account. Your login stays. This can’t be undone.</p>
           <div className="mt-3 flex gap-2">
             {!confirm ? (
               <Button variant="danger" size="sm" onClick={() => setConfirm(true)}>

@@ -1,19 +1,17 @@
+import Image from "next/image";
 import { cn } from "@/lib/cn";
 
-/** Two interlocking arcs — you and your twin — on an emerald seal. */
+/** Brand mark: two figures wrapped in leaves (public/logo.png). */
 export function LogoMark({ className, tone = "emerald" }: { className?: string; tone?: "emerald" | "ivory" }) {
-  const seal = tone === "emerald" ? "#164a3e" : "#f8f6f0";
-  const stroke = tone === "emerald" ? "#f3ece0" : "#164a3e";
   return (
-    <svg viewBox="0 0 40 40" className={cn("h-8 w-8", className)} aria-hidden>
-      <rect x="0.5" y="0.5" width="39" height="39" rx="12" fill={seal} />
-      <g fill="none" stroke={stroke} strokeWidth="1.8" strokeLinecap="round">
-        <path d="M17 12.5a7.5 7.5 0 1 0 0 15" />
-        <path d="M23 27.5a7.5 7.5 0 1 0 0-15" />
-        <path d="M17 20h6" opacity="0.9" />
-      </g>
-      <circle cx="20" cy="20" r="1.6" fill="#c9a978" />
-    </svg>
+    <Image
+      src="/logo.png"
+      alt=""
+      width={421}
+      height={421}
+      aria-hidden
+      className={cn("h-8 w-8 object-contain", tone === "ivory" && "rounded-full bg-white", className)}
+    />
   );
 }
 

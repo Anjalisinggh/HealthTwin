@@ -34,13 +34,30 @@ export function PhoneFrame({ children, className }: { children: ReactNode; class
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { hydrated, onboardingComplete, profile } = useHealth();
+  const { hydrated, account, loadError, onboardingComplete, profile } = useHealth();
 
   useEffect(() => {
-    if (hydrated && !onboardingComplete) router.replace("/onboarding");
-  }, [hydrated, onboardingComplete, router]);
+    if (!hydrated || loadError) return;
+    // Full load so the store starts clean after signing in
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    if (!account) window.location.assign(`/login?next=${encodeURIComponent(pathname)}`);
+    else if (!onboardingComplete) router.replace("/onboarding");
+  }, [hydrated, account, loadError, onboardingComplete, pathname, router]);
 
-  if (!hydrated || !onboardingComplete || !profile) {
+  if (loadError) {
+    return (
+      <PhoneFrame className="items-center justify-center px-8 text-center">
+        <LogoMark className="h-11 w-11" />
+        <p className="mt-5 text-[15px] font-medium">We couldn’t reach HealthTwin</p>
+        <p className="mt-1 text-[13.5px] text-ink-3">Check your connection and try again.</p>
+        <button onClick={() => window.location.reload()} className="mt-5 h-11 rounded-full bg-brand-700 px-6 text-[14px] font-medium text-on-brand">
+          Try again
+        </button>
+      </PhoneFrame>
+    );
+  }
+
+  if (!hydrated || !account || !onboardingComplete || !profile) {
     return (
       <PhoneFrame className="items-center justify-center">
         <LogoMark className="h-11 w-11 animate-pulse-soft" />

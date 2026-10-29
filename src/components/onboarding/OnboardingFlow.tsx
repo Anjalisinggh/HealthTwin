@@ -215,7 +215,7 @@ function Intro({ onStart, resuming }: { onStart: () => void; resuming: boolean }
         <div className="mt-5 flex items-start gap-3 rounded-2xl bg-surface-3/70 p-4 animate-rise [animation-delay:400ms]">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
           <p className="text-[12.5px] leading-relaxed text-ink-2">
-            <span className="font-medium text-ink">Private by design.</span> Stored on this device, used only to build your profile and answer your
+            <span className="font-medium text-ink">Private by design.</span> Saved to your private account, used only to build your profile and answer your
             questions. Export or delete anytime.
           </p>
         </div>

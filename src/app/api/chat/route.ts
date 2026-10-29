@@ -1,38 +1,41 @@
 import { NextResponse } from "next/server";
 import { getCompanion, type ChatMessage } from "@/lib/ai/companion";
 import { buildHealthContext } from "@/lib/context/engine";
-import type { HealthProfile, HealthRecord, Reading } from "@/lib/types";
+import { loadState } from "@/lib/server/health-data";
+import { getUserId } from "@/lib/server/session";
 
 /**
  * POST /api/chat
  *
- * Phase 1: the client owns the data (browser storage), so it sends the
- * profile, records and readings along with the messages. The server rebuilds
- * the health context and asks the companion provider for a reply.
- *
- * With Prisma in place this handler will load the context from the database
- * by user id instead of trusting the request body.
+ * The client sends only the conversation. The health context is rebuilt on
+ * the server from the signed-in user's data, so the answer can't be steered
+ * by a tampered request.
  */
 
 interface Body {
   messages: ChatMessage[];
-  profile: HealthProfile;
-  records: HealthRecord[];
-  readings: Reading[];
 }
 
 export async function POST(request: Request) {
+  const userId = await getUserId();
+  if (!userId) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
   let body: Body;
   try {
     body = (await request.json()) as Body;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  if (!body?.profile || !Array.isArray(body.messages)) {
-    return NextResponse.json({ error: "profile and messages are required" }, { status: 400 });
+  if (!Array.isArray(body?.messages)) {
+    return NextResponse.json({ error: "messages are required" }, { status: 400 });
   }
 
-  const ctx = buildHealthContext(body.profile, body.records ?? [], body.readings ?? []);
+  const state = await loadState(userId);
+  if (!state?.profile) {
+    return NextResponse.json({ error: "Finish your health profile first" }, { status: 409 });
+  }
+
+  const ctx = buildHealthContext(state.profile, state.records, state.readings);
   const reply = await getCompanion().reply(body.messages, ctx);
 
   // Small artificial latency so the typing indicator reads as real.
